@@ -1,3 +1,5 @@
+Question: Please create python program to connect to public API and read data as json convert to data frame and push to postgres table:
+
 import requests
 import pandas as pd
 import psycopg2
