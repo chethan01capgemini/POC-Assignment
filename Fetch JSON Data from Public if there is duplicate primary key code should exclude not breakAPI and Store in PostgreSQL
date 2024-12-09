@@ -1,0 +1,66 @@
+import requests
+import pandas as pd
+import psycopg2
+from psycopg2 import sql
+
+
+url = "https://dummyjson.com/products"
+
+# fetching data from api
+def fetch_data(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  
+        return response.json() 
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred while fetching data: {e}")
+        return None  
+
+# connecting to postgres and inserting into table
+def insert_data_to_db(df):
+    try:
+        
+        conn = psycopg2.connect(
+            dbname='newproducts',
+            user='postgres',
+            password='root',
+            host='localhost',
+            port='5432'
+        )
+        cursor = conn.cursor()
+        insert_query = sql.SQL("""
+            INSERT INTO "Products" (id, title, price, brand)
+            VALUES (%s, %s, %s, %s) ON CONFLICT (id) DO NOTHING
+        """)
+
+        data_to_insert = []
+        for index, row in df.iterrows():
+         data_to_insert.append((row['id'], row['title'], row['price'], row['brand']))
+        
+        cursor.executemany(insert_query, data_to_insert)
+        conn.commit()  
+        print("Data inserted successfully.")
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(f"Database error: {error}")
+    finally:
+        
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+# converting data into dataframe
+def main():
+    data = fetch_data(url) 
+    if data and 'products' in data:  
+        df = pd.DataFrame(data['products']) 
+        print("Data fetched successfully:")
+        print(df[['id', 'title', 'price', 'brand']]) 
+        insert_data_to_db(df)  
+    else:
+        print("No valid data to insert.")
+
+
+if __name__ == "__main__":
+    main()
